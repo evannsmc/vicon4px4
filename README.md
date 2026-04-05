@@ -35,10 +35,10 @@ Assumes ROS 2 Jazzy/Humble is already installed and `rosdep` initialized.
 3. Clone the packages into `src/`:
 
     ```bash
-    git clone git@github.com:evannsm/vicon4px4.git
-    git clone -b v1.16_minimal_msgs git@github.com:evannsm/px4_msgs.git
-    git clone git@github.com:evannsm/mocap_msgs.git
-    git clone git@github.com:evannsm/mocap_px4_relays.git
+    git clone git@github.com:evannsmc/vicon4px4.git
+    git clone -b v1.16_minimal_msgs git@github.com:evannsmc/px4_msgs.git
+    git clone git@github.com:evannsmc/mocap_msgs.git
+    git clone git@github.com:evannsmc/mocap_px4_relays.git
     cd ..   # back to workspace root
     ```
 
@@ -201,8 +201,8 @@ For the EKF to accept vision input you must enable it on the PX4 side (the `EKF2
 - [Vicon Tracker](https://www.vicon.com/software/tracker/) running on another machine, with DataStream enabled and reachable over the network (hostname/IP)
 - ROS 2 Jazzy Jalisco or Humble Hawksbill installed and sourced (at least *ros-jazzy-ros-base* and *ros-dev-tools* packages, [installation guide](https://docs.ros.org/en/jazzy/Installation.html))
 - *rosdep* initialized and updated for managing ROS 2 package dependencies ([installation guide](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Rosdep.html))
-- PX4_msgs package (forked minimal version available [here](https://github.com/evannsm/px4_msgs))
-- mocap_msgs package (available [here](https://github.com/evannsm/mocap_msgs))
+- PX4_msgs package (forked minimal version available [here](https://github.com/evannsmc/px4_msgs))
+- mocap_msgs package (available [here](https://github.com/evannsmc/mocap_msgs))
 
 > Note: you do not need system-wide Boost or the Vicon DataStream SDK; both are vendored per-architecture inside this repository.
 
