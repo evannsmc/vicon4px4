@@ -1,11 +1,14 @@
-FROM ubuntu:24.04
+# ROS distro selects the base image (jazzy -> Ubuntu 24.04, humble -> 22.04).
+ARG ROS_DISTRO=jazzy
+FROM ros:${ROS_DISTRO}-ros-base
 
+ARG ROS_DISTRO
 ARG USERNAME
 ARG USER_UID
 ARG USER_GID
 ARG WS_NAME
 
-ARG ROS_DISTRO=jazzy
+ENV ROS_DISTRO=${ROS_DISTRO}
 ENV DEBIAN_FRONTEND=noninteractive
 
 ##########################################################
@@ -41,30 +44,17 @@ RUN apt update -q && \
         ranger
 
 ##########################################################
-# Install ROS 2
+# ROS 2 extras (ros-base and rosdep init come with the base image)
 ##########################################################
-RUN locale-gen en_US en_US.UTF-8  && \
-    update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8  && \
-    export LANG=en_US.UTF-8
-ENV LANG=en_US.UTF-8
-RUN apt update -q && apt install -yq software-properties-common && \
-    add-apt-repository universe -y
-RUN export ROS_APT_SOURCE_VERSION=$(curl -s https://api.github.com/repos/ros-infrastructure/ros-apt-source/releases/latest | grep -F "tag_name" | awk -F\" '{print $4}') && \
-    curl -L -o /tmp/ros2-apt-source.deb "https://github.com/ros-infrastructure/ros-apt-source/releases/download/${ROS_APT_SOURCE_VERSION}/ros2-apt-source_${ROS_APT_SOURCE_VERSION}.$(. /etc/os-release && echo ${UBUNTU_CODENAME:-${VERSION_CODENAME}})_all.deb" && \
-    sudo dpkg -i /tmp/ros2-apt-source.deb
 RUN apt update -q && \
-    apt upgrade -yq && \
     apt install -yq \
-        ros-${ROS_DISTRO}-ros-base \
         ros-${ROS_DISTRO}-rqt-graph \
         ros-${ROS_DISTRO}-rviz2 \
         ros-dev-tools \
-        python3-rosdep \
         python3-colcon-common-extensions \
         python3-colcon-defaults \
         python3-colcon-mixin \
         python3-vcstool
-RUN rosdep init
 
 ##########################################################
 # Create group and user
@@ -100,7 +90,7 @@ ENV VIRTUAL_ENV=/home/${USERNAME}/venv
 RUN python3 -m venv $VIRTUAL_ENV --system-site-packages
 
 ENV PATH="$VIRTUAL_ENV/bin:${PATH}"
-RUN echo "export PYTHONPATH=$VIRTUAL_ENV/lib/python3.12/site-packages:$PYTHONPATH" >> /home/$USERNAME/.bashrc
+RUN echo "export PYTHONPATH=$(python3 -c "import sysconfig; print(sysconfig.get_path('purelib'))"):\$PYTHONPATH" >> /home/$USERNAME/.bashrc
 RUN echo "source $VIRTUAL_ENV/bin/activate" >> /home/$USERNAME/.bashrc
 
 ##########################################################

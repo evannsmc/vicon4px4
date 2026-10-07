@@ -4,11 +4,12 @@ services:
       context: ..
       dockerfile: .devcontainer/Dockerfile
       args:
+        ROS_DISTRO: ${ROS_DISTRO:-jazzy}   # set ROS_DISTRO=humble on the host for Humble
         USERNAME: ubuntu
         USER_UID: ${UID:-1000}
         USER_GID: ${GID:-1000}
         WS_NAME: ros2_ws
-    image: vsc_vicon4px4_dev:1.0.0
+    image: vsc_vicon4px4_dev:${ROS_DISTRO:-jazzy}
     container_name: devcontainer_vicon4px4
 
     # Interactive shell
@@ -28,5 +29,7 @@ services:
 
     # Volumes 
     volumes:
+      # The repo is the workspace's src/ directory
+      - ..:/home/ubuntu/ros2_ws/src
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /dev:/dev
