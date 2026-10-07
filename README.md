@@ -17,87 +17,64 @@ Derived from [ROS2-Vicon-Receiver](https://github.com/OPT4SMART/ros2-vicon-recei
 
 ## Quick start
 
-Assumes ROS 2 Jazzy/Humble is already installed and `rosdep` initialized.
-
-1. Source ROS 2:
-
-    ```bash
-    source /opt/ros/$ROS_DISTRO/setup.bash
-    ```
-
-2. Create (or choose) a workspace directory:
-
-    ```bash
-    mkdir -p ~/ws_mocap_px4_msgs_drivers/src
-    cd ~/ws_mocap_px4_msgs_drivers/src
-    ```
-
-3. Clone the packages into `src/`:
-
-    ```bash
-    git clone git@github.com:evannsmc/vicon4px4.git
-    git clone -b v1.16_minimal_msgs git@github.com:evannsmc/px4_msgs.git
-    git clone git@github.com:evannsmc/mocap_msgs.git
-    git clone git@github.com:evannsmc/mocap_px4_relays.git
-    cd ..   # back to workspace root
-    ```
-
-4. Install ROS 2 dependencies (none of the vendored Boost / Vicon SDK need system install):
-
-    ```bash
-    rosdep install --from-paths src --rosdistro $ROS_DISTRO -y --ignore-src
-    ```
-
-5. Build with colcon (Python invocation helps with virtual environments):
-
-    ```bash
-    python3 -m colcon build                 \
-      --symlink-install                     \
-      --cmake-args                          \
-        -DCMAKE_BUILD_TYPE=Release          \
-        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-    ```
-
-6. Source the overlay:
-
-    ```bash
-    source install/setup.bash
-    ```
-
-### Setting up Networking Parameters:
-1. Navigate to `vicon4px4/launch/client.launch.py` and set the hostname default value to the static IP address of the desktop that runs the Vicon Tracker software on a local area network (LAN). For instance, the desktop running the vicon tracker could have an IP on the LAN of `192.168.10.2' as shown below:
-```python
-    hostname_arg = DeclareLaunchArgument(
-        'hostname',
-        default_value='192.168.10.2',
-        description='Vicon server hostname or IP address'
-    )
-```
-
-2. Make sure the Ubuntu computer that runs this ROS2 stack has a static IP on the same LAN as the Vicon Tracker computer.
-
-    
-### Launching for vision fusion
-
-To run the Vicon client and visual odometry relay (the typical flight-test configuration):
-
-In one terminal:
-```bash
-ros2 launch vicon4px4 client.launch.py
-```
-
-In another terminal:
-```bash
-ros2 launch mocap_px4_relays visual_odometry_relay.launch.py
-```
-
-And to also include the full state relay:
+Assumes ROS 2 Jazzy or Humble is installed ([guide](https://docs.ros.org/en/jazzy/Installation.html)).
 
 ```bash
-ros2 launch mocap_px4_relays full_state_relay.launch.py
+git clone --recursive https://github.com/evannsmc/vicon4px4.git ~/ws_vicon/src
+~/ws_vicon/src/setup.sh
+source ~/ws_vicon/install/setup.bash
 ```
 
-> **Note:** The relay nodes have been moved to the [`mocap_px4_relays`](../mocap_px4_relays/) package so they can be reused with any motion capture source.
+This repository **is** the workspace's `src/` directory: it holds the `vicon4px4` package next to its
+dependencies, which are git submodules (`px4_msgs` @ `v1.16_minimal_msgs`, `mocap_msgs`,
+`mocap_px4_relays`). `setup.sh` fetches the submodules, installs system dependencies with `rosdep`,
+and builds everything with `colcon build --symlink-install` in Release mode.
+
+- **Update:** `git -C ~/ws_vicon/src pull --recurse-submodules && ~/ws_vicon/src/setup.sh`
+- **Rebuild without rosdep:** `setup.sh --no-deps` (any other arguments go to `colcon build`)
+- **Existing workspace:** clone into `<ws>/src/vicon4px4` instead; `setup.sh` detects this. If that workspace
+  already has `px4_msgs`, `mocap_msgs` or `mocap_px4_relays`, remove one copy (or `touch <copy>/COLCON_IGNORE`),
+  since colcon refuses duplicate package names.
+- **Dev container:** open the repo in VS Code and choose *Reopen in Container* (Jazzy by default;
+  set `ROS_DISTRO=humble` on the host for Humble).
+
+### Configure your network
+
+Edit `vicon4px4/config/vicon4px4_params.yaml`:
+
+```yaml
+hostname: "192.168.10.2"   # IP of the PC running Vicon Tracker
+```
+
+With `--symlink-install` no rebuild is needed. You can also override any parameter at launch
+(`hostname:=192.168.10.5`) or pass your own file with `params_file:=/path/to/params.yaml`.
+Give this machine a static IP on the same LAN as the Vicon Tracker PC.
+
+### Launch
+
+```bash
+# Client + visual odometry relay (typical flight-test configuration)
+ros2 launch vicon4px4 bringup.launch.py vo_relay:=true
+
+# ... + full state relay
+ros2 launch vicon4px4 bringup.launch.py vo_relay:=true full_state_relay:=true
+
+# Client only
+ros2 launch vicon4px4 bringup.launch.py
+```
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `vo_relay` | `false` | Run `visual_odometry_relay` (pose -> `/fmu/in/vehicle_visual_odometry`) |
+| `full_state_relay` | `false` | Run `full_state_relay` (PX4 EKF -> `mocap_msgs/FullState`) |
+| `params_file` | `config/vicon4px4_params.yaml` | Client parameters |
+| any [client parameter](#configuration) | from `params_file` | Override a single value |
+
+`ros2 launch vicon4px4 bringup.launch.py --show-args` lists everything. The previous launch files still work
+and are shortcuts for the above: `client.launch.py`, `client_and_visual_odometry.launch.py`
+(`vo_relay:=true`) and `client_vision_full_all.launch.py` (both relays).
+
+> The relay subscribes to `/vicon/drone/drone`, so name your subject (and segment) `drone` in Vicon Tracker and keep the default `vicon` namespace.
 
 ### Example Topic Tree (all three nodes running) assuming your rigid body is named `drone` in the Vicon Tracker app.
 
@@ -146,25 +123,12 @@ map (world_frame)
 ```
 
 The static `map -> vicon` transform is defined by `map_xyz` and `map_rpy`. Dynamic child frames update with each Vicon measurement.
- Published topics
-
-All topics are published under the configured `namespace` (default `vicon`):
-
-```text
-/<namespace>/<subject_name>/<segment_name>         [geometry_msgs/PoseStamped]
-/<namespace>/<subject_name>/<segment_name>_euler    [mocap_msgs/PoseEuler]
-```
-
-- **PoseStamped**: position (x, y, z) + quaternion (qw, qx, qy, qz) in NED
-- **PoseEuler**: position (x, y, z) + roll, pitch, yaw in radians
-
-`<subject_name>` and `<segment_name>` are taken verbatim from Vicon Tracker.
 
 ---
 
 ## Relay nodes
 
-The **visual_odometry_relay** and **full_state_relay** nodes have been moved to the [`mocap_px4_relays`](../mocap_px4_relays/) package so they can be reused with any motion capture source (Vicon, OptiTrack, etc.). See that package's README for full documentation.
+The **visual_odometry_relay** and **full_state_relay** nodes have been moved to the [`mocap_px4_relays`](mocap_px4_relays/) package so they can be reused with any motion capture source (Vicon, OptiTrack, etc.). See that package's README for full documentation.
 
 ### Data pipeline
 
@@ -196,13 +160,29 @@ For the EKF to accept vision input you must enable it on the PX4 side (the `EKF2
 
 ---
 
+## Configuration
+
+Parameters of `vicon_client`, read from `vicon4px4/config/vicon4px4_params.yaml` (or `params_file:=`). Each one can be overridden as a launch argument of the same name, except `namespace`, whose launch argument is `topic_namespace`.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `hostname` | `192.168.10.2` | IP/hostname of the machine running Vicon Tracker |
+| `buffer_size` | `200` | Vicon DataStream buffer size |
+| `namespace` | `vicon` | Topic namespace prefix |
+| `world_frame` | `map` | Global TF reference frame |
+| `vicon_frame` | `vicon` | Vicon TF reference frame |
+| `map_xyz` | `[0.0, 0.0, 0.0]` | Static translation: world_frame -> vicon_frame (meters) |
+| `map_rpy` | `[0.0, 0.0, 0.0]` | Static rotation: world_frame -> vicon_frame |
+| `map_rpy_in_degrees` | `false` | If `true`, `map_rpy` values are in degrees |
+
+---
+
 ## Requirements
 
 - [Vicon Tracker](https://www.vicon.com/software/tracker/) running on another machine, with DataStream enabled and reachable over the network (hostname/IP)
 - ROS 2 Jazzy Jalisco or Humble Hawksbill installed and sourced (at least *ros-jazzy-ros-base* and *ros-dev-tools* packages, [installation guide](https://docs.ros.org/en/jazzy/Installation.html))
-- *rosdep* initialized and updated for managing ROS 2 package dependencies ([installation guide](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Rosdep.html))
-- PX4_msgs package (forked minimal version available [here](https://github.com/evannsmc/px4_msgs))
-- mocap_msgs package (available [here](https://github.com/evannsmc/mocap_msgs))
+- *rosdep* for ROS 2 package dependencies (`setup.sh` initializes it on first run; [guide](https://docs.ros.org/en/jazzy/Tutorials/Intermediate/Rosdep.html))
+- [`px4_msgs`](https://github.com/evannsmc/px4_msgs/tree/v1.16_minimal_msgs), [`mocap_msgs`](https://github.com/evannsmc/mocap_msgs) and [`mocap_px4_relays`](https://github.com/evannsmc/mocap_px4_relays) are included as git submodules
 
 > Note: you do not need system-wide Boost or the Vicon DataStream SDK; both are vendored per-architecture inside this repository.
 
@@ -217,19 +197,25 @@ For the EKF to accept vision input you must enable it on the PX4 side (the `EKF2
 
 ---
 
-## Package layout
+## Repository layout
 
 ```text
-vicon4px4/
-├── src/
-│   ├── communicator.cpp            # vicon_client - connects to Vicon, converts ENU->NED
-│   ├── publisher.cpp               # per-subject publisher creation
-│   └── utils.cpp                   # frame conversion utilities
-├── launch/
-│   ├── client.launch.py                      # vicon_client only
-│   ├── client_and_visual_odometry.launch.py  # client + relay (uses mocap_px4_relays)
-│   └── client_vision_full_all.launch.py      # all three nodes (uses mocap_px4_relays)
-└── third_party/                              # vendored Boost 1.75 & Vicon SDK 1.12
+vicon4px4/                          # the repo = your workspace's src/
+├── setup.sh                     # submodules + rosdep + colcon build
+├── .devcontainer/               # VS Code dev container (Jazzy/Humble)
+├── .github/workflows/build.yml  # CI: builds on Humble and Jazzy
+├── docs/
+├── vicon4px4/                    # the ROS 2 package
+│   ├── src/                     # vicon_client node (communicator, publisher, utils)
+│   ├── include/vicon4px4/
+│   ├── launch/
+│   │   ├── bringup.launch.py    # client + optional relays (vo_relay:=, full_state_relay:=)
+│   │   └── client*.launch.py    # shortcuts for bringup.launch.py
+│   ├── config/vicon4px4_params.yaml
+│   ├── third_party/                # vendored Boost 1.75 & Vicon SDK 1.12 (x86_64, aarch64)
+├── px4_msgs/                    # submodule (v1.16_minimal_msgs)
+├── mocap_msgs/                  # submodule
+└── mocap_px4_relays/            # submodule: visual_odometry_relay, full_state_relay
 ```
 
 ---
@@ -262,17 +248,6 @@ vicon4px4/
 - Frame IDs for subjects/segments are derived from Vicon names.
 
 > Units follow ROS conventions (positions in meters, rotations in radians) in downstream consumers; ensure your system uses consistent units end-to-end.
-
-#### TF tree
-
-```text
-map (world_frame)
-└── vicon (vicon_frame)          [static]
-    ├── <subject_1>_<segment_1>  [dynamic]
-    └── <subject_2>_<segment_2>  [dynamic]
-```
-
-The static `map -> vicon` transform is defined by `map_xyz` and `map_rpy`. Dynamic child frames update with each Vicon measurement.
 
 ---
 
