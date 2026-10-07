@@ -1,0 +1,14 @@
+# Default parameters for vicon_client.
+# Edit this file for your lab (with --symlink-install no rebuild is needed),
+# pass your own with `params_file:=/path/to.yaml`, or override any single
+# value on the command line, e.g. `hostname:=192.168.10.5`.
+vicon_client:
+  ros__parameters:
+    hostname: "192.168.10.2"      # IP/hostname of the PC running Vicon Tracker
+    buffer_size: 200
+    namespace: "vicon"            # topics: /<namespace>/<subject>/<segment>
+    world_frame: "map"
+    vicon_frame: "vicon"
+    map_xyz: [0.0, 0.0, 0.0]      # static world_frame -> vicon_frame translation (m)
+    map_rpy: [0.0, 0.0, 0.0]      # static world_frame -> vicon_frame rotation
+    map_rpy_in_degrees: false
