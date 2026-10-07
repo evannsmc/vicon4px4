@@ -5,6 +5,7 @@
   <version>1.0.0</version>
   <description>Vicon4PX4 -- A ROS 2 Vicon to PX4 External Vision Bridge</description>
   <maintainer email="egm@gatech.edu">Evanns Morales</maintainer>
+  <author email="info@opt4smart.eu">OPT4SMART group (ros2-vicon-receiver)</author>
   <license>GNU General Public License v3.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
